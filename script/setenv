@@ -1,0 +1,35 @@
+#!/bin/sh
+
+export proj=${PWD}
+
+export dumpfsdb=${proj}/script/dumpfsdb.tcl
+
+export LS_COLORS+='*.v=01;33:*.sv=01;33:*.f=01;95:*README=01;31:*.lib=01;37:'
+
+back_path='cd ${proj}'
+
+sim_path='cd ${proj}/sim'
+
+rtl_path='cd ${proj}/rtl'
+
+alias install=${proj}/script/install
+
+alias install_e203=${proj}/script/install_e203
+
+alias run=${proj}/script/run
+
+alias wave=${proj}/script/wave
+
+alias back=${back_path}
+
+alias sim=${sim_path}
+
+alias rtl=${rtl_path}
+
+alias scope="mkdir -p view && cd view && verdi -sv -f ../rtl.f &"
+
+alias clean=${proj}/script/clean_run.sh
+
+echo "Source setenv completely!"
+
+echo "proj: ${proj}"

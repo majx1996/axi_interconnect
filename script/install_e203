@@ -1,0 +1,23 @@
+#!/usr/bin/perl
+
+$tc_all = ` ls bin/*verilog `;
+@tc_arr = split(" ", $tc_all);
+
+$tb_top = "seg.v";
+$tc_list = "tc.list";
+
+open($tb_top_fh, ">".$tb_top) or die "Error, can not open $tb_top";
+open($tc_list_fh, ">".$tc_list) or die "Error, can not open $tc_list";
+
+foreach $tc (@tc_arr){
+    $tc =~ /\/(.*)\.verilog/;
+    $define = $1; $define =~ s/-/_/g; $define = uc($define);
+
+    print $tb_top_fh "`ifdef $define\n";
+    print $tb_top_fh "    \$readmemh(\"./$tc\", itcm_mem);\n";
+    print $tb_top_fh "`endif\n";
+    print $tc_list_fh "$define\n";
+}
+
+
+close $tb_top_fh; close $tc_list_fh;

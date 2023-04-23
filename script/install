@@ -1,0 +1,68 @@
+#!/usr/bin/perl
+
+
+use Cwd 'abs_path';
+
+$proj = $ENV{'proj'};
+$target = undef;
+
+# Input check
+if($ARGV[0]){
+    $target = abs_path($ARGV[0]);
+    print "User specified path is:";
+}else{
+    $target = "$proj/rtl";
+    print "Default path is:";
+}
+
+print " $target\n";
+
+unless(-d $target and -e $target){
+    die "Error, $target is not a directory, or it isn't exist\n";
+}
+
+# Find *.v *.sv
+$rtlf_tmp = "$target/rtl.tmp";
+$rtlf = "$target/rtl.f";
+
+$find_str0  = '   find '.$target.' -name "*" | grep -E ".*define\w*\.[sv]+$"   ';
+$find_str1  = '   find '.$target.' -name "*" | grep -E ".*\.[sv]+$" | grep -vE ".*define\w*\.[sv]+$"   ';
+
+$find_rtl0 = `$find_str0`;
+$find_rtl1 = `$find_str1`;
+
+
+` echo -e '// AUTO GENERATE' > $rtlf_tmp `;
+
+if($find_rtl0){
+` echo -e '//----------------------
+//      define
+//-------------------------' >> $rtlf_tmp `;
+` $find_str0 >> $rtlf_tmp `;
+}
+
+if($find_rtl1){
+` echo -e '//----------------------
+//      hdl
+//-------------------------' >> $rtlf_tmp `;
+` $find_str1 >> $rtlf_tmp `;       
+}
+
+
+# Replace abs-path to $proj
+
+open($rtlf0_fh, "<".$rtlf_tmp) or die "Error, can not open, $!";
+open($rtlf1_fh, ">".$rtlf) or die "Error, can not open, $!";
+
+while($rd_rtlf0 = <$rtlf0_fh>){
+    $pattern = qr/$proj/;
+    $rd_rtlf0 =~ s/$pattern/\$proj/g;
+    print $rtlf1_fh $rd_rtlf0;
+}
+
+close $rtlf0_fh, $rtlf1_fh;
+
+` rm -rf $rtlf_tmp `;
+
+
+print "Generate $rtlf completely!\n";

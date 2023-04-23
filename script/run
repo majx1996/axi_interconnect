@@ -1,0 +1,193 @@
+#!/usr/bin/perl
+
+use Getopt::Long;
+
+# Parse ARGV
+$fsdb = 1;
+$seed = undef;
+@define = ();
+$regress = undef;
+
+GetOptions(
+    'fsdb!' => \$fsdb,
+    'seed:s' => \$seed,
+    'define:s' => \@define,
+    'regress:s' => \$regress,
+);
+
+
+# Get Global Options
+$proj = $ENV{'proj'};
+$pwd = $ENV{'PWD'};
+$dumpfsdb = $ENV{'dumpfsdb'};
+
+$workpath = "$pwd/run";
+$flist = "$pwd/sim.f";
+$output = "vsim";
+$top = "tb_top";
+$clog = "$workpath/comp.log";
+$slog = "$workpath/sim.log";
+
+# Run Testcase
+if($regress){
+    if(-e $regress){
+
+        $fsdb = 0; # close fsdb when regression
+        open($tc_fh, "<".$regress) or die "Error, can not open $regress";
+        while($rd_tc = <$tc_fh>){
+            push @tc_arr, $rd_tc;
+        }
+        close $tc_fh;
+
+        $regress_cnt = 0;
+        &pre_process_re();
+        foreach $tc (@tc_arr){
+            $regress_cnt += 1;
+            $clog = "$workpath/comp$regress_cnt.log";
+            $slog = "$workpath/sim$regress_cnt.log";
+            @define_assemble = (@define, $tc);
+            $seed = &get_seed();
+
+            $vcs_opt = &get_vcs_opt(\$output, \$top, \$flist, \$clog, \$fsdb, \@define_assemble, \1);
+            $sim_opt = &get_sim_opt(\$fsdb, \$seed, \$slog, \1);
+            &run_vcs_sim(\$vcs_opt, \$sim_opt);
+        }
+        &post_process_re();
+
+    }elsif($regress =~ /^[0-9]+$/){
+
+        $fsdb = 0; # close fsdb when regression
+        
+        &pre_process_re();
+        for($regress_cnt = 1; $regress_cnt <= $regress; $regress_cnt += 1){
+            $clog = "$workpath/comp$regress_cnt.log";
+            $slog = "$workpath/sim$regress_cnt.log";
+            $seed = &get_seed();
+
+            $vcs_opt = &get_vcs_opt(\$output, \$top, \$flist, \$clog, \$fsdb, \@define, \1);
+            $sim_opt = &get_sim_opt(\$fsdb, \$seed, \$slog, \1);
+            print "$vcs_opt"."$sim_opt\n";
+            &run_vcs_sim(\$vcs_opt, \$sim_opt);
+        }
+        &post_process_re();
+        
+    }else{
+        die "Error, please check regress: $regress";
+    }
+}else{
+    &pre_process_re();
+    $seed = &get_seed(\$seed);
+    $vcs_opt = &get_vcs_opt(\$output, \$top, \$flist, \$clog, \$fsdb, \@define, \0);
+    $sim_opt = &get_sim_opt(\$fsdb, \$seed, \$slog, \0);
+    &run_vcs_sim(\$vcs_opt, \$sim_opt);
+    &post_process_re();
+}
+
+
+# vcs option parse
+sub get_vcs_opt{
+    my $output  = ${$_[0]};
+    my $top     = ${$_[1]};
+    my $flist   = ${$_[2]};
+    my $log     = ${$_[3]};
+    my $fsdb    = ${$_[4]};
+    my @define  = @{$_[5]};
+    my $regress = ${$_[6]};
+
+    my $vcs_opt = "-full64 -sverilog -Mupdate -timescale=1ns/10ps -o $output -top $top -f $flist -l $log ";
+
+    if($fsdb == 1){
+        $vcs_opt .= "-debug_all -lca -kdb ";
+    }
+
+    if($regress == 1){
+        $vcs_opt .= "-q ";
+    }
+
+    foreach my $var (@define){
+        $vcs_opt .= "+define+$var ";
+    }
+
+    return $vcs_opt;
+}
+
+# seed parse
+sub get_seed{
+    my $seed = ${$_[0]};
+
+    unless($seed){
+        $seed = int(rand(`date +%s`));
+    }
+
+    return $seed;
+}
+
+# sim option parse
+sub get_sim_opt{
+    my $fsdb    = ${$_[0]};
+    my $seed    = ${$_[1]};
+    my $log     = ${$_[2]};
+    my $regress = ${$_[3]};
+
+    my $sim_opt = "-sverilog +plusargs_save +seed=$seed -l $log ";
+
+    if($fsdb == 1){
+        $sim_opt .= "-ucli -i $dumpfsdb"; # $dumpfsdb is global variable
+    }
+
+    if($regress == 1){
+        $sim_opt .= "-q ";
+    }
+
+    return $sim_opt;
+}
+
+# run vcs & sim together
+sub run_vcs_sim{
+    my $vcs_opt = ${$_[0]};
+    my $sim_opt = ${$_[1]};
+
+    &pre_process_tc();
+    system("cd $workpath && vcs $vcs_opt"); # $workpath is global variable
+    system("cd $workpath && ./$output $sim_opt"); # $workpath and $output are global variable
+    &post_process_tc(\$vcs_opt, \$sim_opt);
+}
+
+# Pre-Process each regression
+sub pre_process_re{
+    system("rm -rf $workpath/log $workpath/tb_top.v");
+    system("mkdir $workpath");
+    system("mkdir $workpath/log");
+    system("ln -sf $pwd/tb_top.v $workpath/tb_top.v");
+    if(-e "$pwd/bin"){
+        system("cp -r $pwd/bin $workpath"); # For e203 load code
+    }
+}
+
+# Pre-Process each testcase
+sub pre_process_tc{
+    system("rm -rf $workpath/pass $workpath/fail");
+}
+
+# Post-Process each regression
+sub post_process_re{
+    system("mv $workpath/comp*log $workpath/log");
+    system("mv $workpath/sim*log $workpath/log");
+}
+
+# Post-Process each testcase
+sub post_process_tc{
+    my $vcs_opt = ${$_[0]};
+    my $sim_opt = ${$_[1]};
+    my $summary = "$workpath/log/summary.log";
+    
+    open($summary_fh, ">>".$summary) or die "Error, can not open $summary";
+    if(-e "$workpath/pass"){
+        print $summary_fh "Pass\n$vcs_opt\n$sim_opt\n\n";
+    }elsif(-e "$workpath/fail"){
+        print $summary_fh "Fail\n$vcs_opt\n$sim_opt\n\n";
+    }else{
+        print $summary_fh "Error\n$vcs_opt\n$sim_opt\n\n";
+    }
+    close $summary_fh;
+}
