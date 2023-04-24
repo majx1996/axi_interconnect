@@ -12,9 +12,9 @@ module axi_interconnect #(
     parameter AW = 32,
     parameter IDW = 4,
     parameter USRW = 4,
-    parameter [AW-1:0] SLV_ADDR_L[SLV_N] = '{SLV_N { AW{1'b0} }},
-    parameter [AW-1:0] SLV_ADDR_H[SLV_N] = '{SLV_N { AW{1'b0} }},
-    parameter [SLV_N-1:0] SLV_ACCESS[MST_N] = '{MST_N {SLV_N{1'b1}}}
+    parameter [AW-1:0] SLV_ADDR_L[SLV_N] = '{SLV_N { {AW{1'b0}} }},
+    parameter [AW-1:0] SLV_ADDR_H[SLV_N] = '{SLV_N { {AW{1'b0}} }},
+    parameter [SLV_N-1:0] SLV_ACCESS[MST_N] = '{MST_N{ {SLV_N{1'b1}} }}
 )(
 
     // slave ports connect to external axi master

@@ -8,8 +8,8 @@
 module axi_decoder #(
     parameter SLV_N = 8,    // slave number
     parameter AW = 32,      // address width
-    parameter [AW-1:0] SLV_ADDR_L[SLV_N] = '{SLV_N { AW{1'b0} }}, // low address per slave
-    parameter [AW-1:0] SLV_ADDR_H[SLV_N] = '{SLV_N { AW{1'b0} }}, // high address per slave
+    parameter [AW-1:0] SLV_ADDR_L[SLV_N] = '{SLV_N { {AW{1'b0}} }}, // low address per slave
+    parameter [AW-1:0] SLV_ADDR_H[SLV_N] = '{SLV_N { {AW{1'b0}} }}, // high address per slave
     parameter [SLV_N-1:0] SLV_ACCESS = {SLV_N{1'b1}} // master access slave
     
 )(

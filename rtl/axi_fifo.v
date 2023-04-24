@@ -11,17 +11,20 @@ module axi_fifo #(
     parameter   DW = 8, // Data Width
     parameter   DP = 4  // Data Depth
 )(
-    input           i_clk,
-    input           i_resetn,
-    input  [DW-1:0] i_data,
-    input           i_push,
-    input           i_pop,
-    output [DW-1:0] o_data,
-    output          o_valid,
-    output          o_full,
-    output          o_empty
+    i_clk, i_resetn,
+    i_data, i_push, i_pop,
+    o_data, o_valid, o_full, o_empty
 );
 
+input  logic          i_clk;
+input  logic          i_resetn;
+input  logic [DW-1:0] i_data;
+input  logic          i_push;
+input  logic          i_pop;
+output logic [DW-1:0] o_data;
+output logic          o_valid;
+output logic          o_full;
+output logic          o_empty;
 
 localparam AW = $clog2(DW);
 
