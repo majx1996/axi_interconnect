@@ -7,12 +7,14 @@ $fsdb = 1;
 $seed = undef;
 @define = ();
 $regress = undef;
+$top = "tb_top";
 
 GetOptions(
     'fsdb!' => \$fsdb,
     'seed:s' => \$seed,
     'define:s' => \@define,
     'regress:s' => \$regress,
+    'top:s' => \$top,
 );
 
 
@@ -24,7 +26,6 @@ $dumpfsdb = $ENV{'dumpfsdb'};
 $workpath = "$pwd/run";
 $flist = "$pwd/sim.f";
 $output = "vsim";
-$top = "tb_top";
 $clog = "$workpath/comp.log";
 $slog = "$workpath/sim.log";
 
