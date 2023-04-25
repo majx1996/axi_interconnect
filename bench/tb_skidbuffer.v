@@ -1,7 +1,7 @@
 module tb_skidbuffer();
 `define RD 1
 
-localparam MODE = 1; // 1: forward register, 2: backward register, 3: fully register
+localparam MODE = 3; // 1: forward register, 2: backward register, 3: fully register
 localparam DW = 8;
 
 logic            i_clk;
@@ -12,6 +12,9 @@ logic            s_ready;
 logic [DW-1:0]   m_data;
 logic            m_valid;
 logic            m_ready;
+integer          data_cnt;
+logic            send_one_data;
+logic            rev_one_data;
 
 axi_skidbuffer #(
     .DW (DW),
@@ -38,18 +41,10 @@ initial begin
 
     wait(i_resetn==1);
 
-    #100;
-
-    s_valid = 1;
-    m_ready = 1;
- 
-    repeat(30) begin
-        @ (posedge i_clk) begin
-            #`RD;
-            s_valid = $random();
-            m_ready = $random();
-        end
-    end
+    alw_send_stall_rev;
+    stall_send_alw_rev;
+    alw_send_alw_rev;
+    stall_send_stall_rev;
 
     #100;
     $finish();
@@ -72,6 +67,99 @@ always @ (posedge i_clk) begin
     if(m_valid && m_ready)
         $display("Receive data: %h", m_data);
 end
+
+assign send_one_data = s_valid && s_ready;
+assign rev_one_data = m_ready && m_valid;
+
+
+always @ (posedge i_clk) begin
+    if(~i_resetn)
+        data_cnt <= 0;
+    else if(send_one_data && ~rev_one_data)
+        data_cnt <= data_cnt + 1;
+    else if(rev_one_data && ~send_one_data)
+        data_cnt <= data_cnt - 1; 
+end
+
+task alw_send_stall_rev;
+    #100;
+    repeat(30) begin
+        @ (posedge i_clk) begin
+            #`RD;
+            s_valid = 1;
+            m_ready = $random();
+        end
+    end
+    rev_rest_data();
+endtask
+
+task stall_send_alw_rev;
+    #100;
+    @ (posedge i_clk) begin
+        #`RD;
+        m_ready = 1;
+    end
+    repeat(30) begin
+        @ (posedge i_clk) begin
+            if(~s_valid) begin
+                #`RD;
+                s_valid = $random();
+            end else if(s_valid && s_ready) begin
+                #`RD
+                s_valid = $random();
+            end
+        end
+    end
+    rev_rest_data();
+endtask
+
+task alw_send_alw_rev;
+    #100;
+    @ (posedge i_clk) begin
+        #`RD m_ready = 1;
+        #`RD s_valid = 1;
+    end
+    repeat(30) begin
+        @(posedge i_clk);
+    end
+    rev_rest_data();
+endtask
+
+task stall_send_stall_rev;
+    #100;
+    repeat(30) fork
+        @(posedge i_clk) begin
+            #`RD; m_ready = $random();
+        end
+        
+        @(posedge i_clk) begin
+            if(~s_valid) begin
+                #`RD;
+                s_valid = $random();
+            end else if(s_valid && s_ready) begin
+                #`RD
+                s_valid = $random();
+            end            
+        end
+    join
+    rev_rest_data();
+endtask
+
+task rev_rest_data;
+    @(posedge i_clk);
+
+    while(data_cnt >= 1) begin
+        @(posedge i_clk) begin
+            #`RD;
+            s_valid = 0;
+            m_ready = 1;
+        end
+    end
+    
+    @(posedge i_clk)
+    #`RD
+    m_ready = 0;
+endtask
 
 
 endmodule
